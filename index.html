@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>趣味动物测试</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .progress-ring-circle {
+      transition: stroke-dashoffset 0.35s;
+    }
+    body {-webkit-tap-highlight-color:transparent; user-select: none;}
+    .animal-emoji {
+      font-size: 4rem;
+      animation: float 3s ease-in-out infinite;
+    }
+    @keyframes float {
+      0% { transform: translateY(0);}
+      50% {transform: translateY(-10px);}
+      100% {transform: translateY(0);}
+    }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen flex flex-col items-center justify-center p-4">
+  <div class="w-full max-w-md mx-auto text-center">
+    <h1 class="text-4xl font-bold mb-6 text-blue-400 drop-shadow">测一测你是哪种动物 🐾</h1>
+    <div class="bg-white rounded-3xl shadow p-6 mb-8">
+      <div id="test-area" class="mb-6">
+        <div class="relative w-48 h-48 mx-auto">
+          <svg class="progress-ring absolute top-0 left-0" width="192" height="192">
+            <circle
+              class="text-gray-200"
+              stroke-width="10"
+              stroke="currentColor"
+              fill="transparent"
+              r="86"
+              cx="96"
+              cy="96"
+            />
+            <circle
+              id="progress-circle"
+              class="text-blue-300 progress-ring-circle"
+              stroke-width="10"
+              stroke="currentColor"
+              fill="transparent"
+              r="86"
+              cx="96"
+              cy="96"
+              stroke-dasharray="540"
+              stroke-dashoffset="540"
+            />
+          </svg>
+          <div id="press-hint" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 select-none">
+            <div class="text-5xl mb-2">👇</div>
+            <p class="text-lg text-gray-600">长按这里检测</p>
+          </div>
+          <div id="progress-text" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-xl font-bold hidden">
+            <span id="progress-percentage">0%</span>
+          </div>
+        </div>
+        <p id="instruction" class="text-gray-600 mt-6">长按圆圈中央，看看你是什么动物！</p>
+      </div>
+      <div id="result-area" class="hidden">
+        <div class="flex flex-col items-center min-h-[180px] mb-4">
+          <div id="animal-emoji" class="animal-emoji"></div>
+          <h2 id="result-title" class="text-2xl font-bold mb-2"></h2>
+          <p id="result-description" class="text-gray-600"></p>
+        </div>
+        <p class="text-gray-400 text-sm">结果已保存，刷新不会改变，也不能重新测试。</p>
+      </div>
+    </div>
+    <footer class="text-gray-400 text-sm">作者：Sunny-shark 🦈</footer>
+  </div>
+  <script>
+    // 结果数据
+    const animalResults = [
+      { emoji: "🐶", name: "小狗", description: "你像小狗一样热情开朗！" },
+      { emoji: "🐱", name: "小猫", description: "你像小猫一样可爱温顺！" },
+      { emoji: "🐰", name: "兔子", description: "你活泼灵动，像只小兔子~" },
+      { emoji: "🦊", name: "小狐狸", description: "机智又调皮的小狐狸~" },
+      { emoji: "🐻", name: "小熊", description: "憨厚认真的小熊，是你!" },
+      { emoji: "🐯", name: "小老虎", description: "威猛中带点呆萌的小老虎！" },
+      { emoji: "🐷", name: "小猪", description: "软糯Q弹的小猪仔！" },
+      { emoji: "🦁", name: "小狮子", description: "有点霸气又很可爱！" },
+      { emoji: "🐵", name: "猴子", description: "灵巧古怪的开心果！" },
+      { emoji: "🐧", name: "企鹅", description: "喜欢抱团，超萌超治愈！" }
+    ];
+    const testArea = document.getElementById('test-area');
+    const resultArea = document.getElementById('result-area');
+    const progressCircle = document.getElementById('progress-circle');
+    const progressText = document.getElementById('progress-text');
+    const progressPercentage = document.getElementById('progress-percentage');
+    const pressHint = document.getElementById('press-hint');
+    const instruction = document.getElementById('instruction');
+    const animalEmoji = document.getElementById('animal-emoji');
+    const resultTitle = document.getElementById('result-title');
+    const resultDescription = document.getElementById('result-description');
+    // 进度条参数
+    const circumference = 2 * Math.PI * 86;
+    const requiredHoldTime = 2000;
+    let startTime = 0, isHolding = false, progressInterval;
+    progressCircle.style.strokeDasharray = circumference;
+    progressCircle.style.strokeDashoffset = circumference;
+    // 加载结果
+    let saved = localStorage.getItem('animalTestResult');
+    if(saved){
+      showResult(JSON.parse(saved));
+    }
+    function handleHoldStart(e){
+      e.preventDefault();
+      if(localStorage.getItem('animalTestResult')) return;
+      isHolding = true;
+      startTime = Date.now();
+      progressText.classList.remove('hidden');
+      pressHint.classList.add('hidden');
+      instruction.textContent = '检测中...';
+      progressInterval = setInterval(updateProgress, 30);
+    }
+    function handleHoldEnd(){
+      if(localStorage.getItem('animalTestResult')) return;
+      isHolding = false;
+      clearInterval(progressInterval);
+      resetProgress();
+      instruction.textContent = '长按圆圈中央，看看你是什么动物！';
+    }
+    function updateProgress(){
+      if(!isHolding) return;
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / requiredHoldTime, 1);
+      progressCircle.style.strokeDashoffset = circumference - (progress * circumference);
+      progressPercentage.textContent = Math.round(progress*100) + "%";
+      if(progress>=1){
+        clearInterval(progressInterval);
+        generateResult();
+      }
+    }
+    function resetProgress(){
+      clearInterval(progressInterval);
+      progressCircle.style.strokeDashoffset = circumference;
+      progressText.classList.add('hidden');
+      pressHint.classList.remove('hidden');
+      progressPercentage.textContent = '0%';
+    }
+    function generateResult(){
+      const i = Math.floor(Math.random()*animalResults.length);
+      const result = animalResults[i];
+      localStorage.setItem('animalTestResult', JSON.stringify(result));
+      showResult(result);
+    }
+    function showResult(result){
+      testArea.classList.add('hidden');
+      resultArea.classList.remove('hidden');
+      animalEmoji.textContent = result.emoji;
+      resultTitle.textContent = result.name;
+      resultDescription.textContent = result.description;
+    }
+    const progressContainer = document.querySelector('.relative');
+    progressContainer.addEventListener('mousedown', handleHoldStart);
+    progressContainer.addEventListener('touchstart', handleHoldStart);
+    document.addEventListener('mouseup', handleHoldEnd);
+    document.addEventListener('touchend', handleHoldEnd);
+    document.addEventListener('touchcancel', handleHoldEnd);
+  </script>
+</body>
+</html>
